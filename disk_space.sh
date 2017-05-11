@@ -10,6 +10,6 @@ do
   name=$(echo $entry | awk '{print $1}')
   used=$(echo $entry | awk '{print $3}')
   available=$(echo $entry | awk '{print $4}')
-  echo $name.used $used
-  echo $name.available $available
+  . _report.sh $name.space.used $used
+  . _report.sh $name.space.available $available
 done
