@@ -1,28 +1,30 @@
 # get all disk identifier
-disks=$(diskutil list | grep physical | awk '{print $1}')
+disks=$(ls /sys/block | grep -v loop)
 
 # remove /dev/ prefix
-disks=$(echo $disks | sed 's/\/dev\///')
 
-for disk in $disks; do
- # get smart attributes for single disk
- lines=$(smartctl -s on -a $disk | grep '[0-9]\{1,\} .\{1,\} 0x')
+scripts=$(dirname "$0")
 
- while read -r attribute; do
-  #ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_FAILED RAW_VALUE
-  id=`echo $attribute | awk '{print $1}'`
-  name=`echo $attribute | awk '{print $2}' | tr - _`
-  flag=`echo $attribute | awk '{print $3}'`
-  value=`echo $attribute | awk '{print $4}'`
-  worst=`echo $attribute | awk '{print $5}'`
-  thresh=`echo $attribute | awk '{print $6}'`
-  type=`echo $attribute | awk '{print $7}'`
-  updated=`echo $attribute | awk '{print $8}'`
-  whenfailed=`echo $attribute | awk '{print $9}'`
-  raw=`echo $attribute | awk '{print $10}'`
+for file in /var/lib/smartmontools/smartd.*; do
+ filename="${file##*/}"
+ filename=$(echo $filename | sed 's/smartd.//' | sed 's/.ata.state//')
+ content=$(cat $file | grep -v file) 
+ attributes=$(echo "$content" | grep ata-smart-attribute)
+ other=$(echo "$content" | grep -v ata-smart-attribute)
+ #echo "$attributes"
 
-  result=$(echo $disk.smart.$name $raw | awk '{print tolower($0)}')
-  echo $result
- done <<< "$lines"
+ ids=$(echo "$attributes" | grep id | awk '{print $3}')
+ for id in $ids; do
+  #echo "ata-smart-attribute\.[0-9]*\.id \= $id"
+  attributeid=$(echo "$attributes" | grep "ata-smart-attribute\.[0-9]*\.id \= $id$")
+  attributeid=$(echo "$attributeid" | sed "s/ata-smart-attribute.//" | sed "s/.id.*//")
+  value=$(echo "$attributes" | grep "\.$attributeid\.val" | awk '{print $3}')
+  raw=$(echo "$attributes" | grep "\.$attributeid\.raw" | awk '{print $3}')
+  worst=$(echo "$attributes" | grep "\.$attributeid\.worst" | awk '{print $3}')
 
+  $scripts/_report.sh drive.$filename.smart.$id.value $value
+  $scripts/_report.sh drive.$filename.smart.$id.raw $raw
+  $scripts/_report.sh drive.$filename.smart.$id.worst $worst
+
+ done
 done

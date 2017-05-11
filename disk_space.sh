@@ -1,6 +1,7 @@
 #!/bin/sh
 
-drives=$(df -l -k | grep dev | awk '{print $9}')
+scripts=$(dirname "$0")
+drives=$(df -l -k | awk '{print $6}' | grep -v docker | grep -v boot | grep -v run | grep -v sys | grep -v shm | grep -v /dev | grep -v Mounted)
 
 for drive in $drives;
 do
@@ -10,6 +11,7 @@ do
   name=$(echo $entry | awk '{print $1}')
   used=$(echo $entry | awk '{print $3}')
   available=$(echo $entry | awk '{print $4}')
-  . _report.sh $name.space.used $used
-  . _report.sh $name.space.available $available
+
+  $scripts/_report.sh disk.$name.space.used $used
+  $scripts/_report.sh disk.$name.space.available $available
 done
